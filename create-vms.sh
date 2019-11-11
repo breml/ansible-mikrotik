@@ -11,7 +11,7 @@ dpkg -s virtualbox > /dev/null || sudo apt install virtualbox # required
 
 mkdir -p $test_dir && cd $test_dir && mkdir -p VMs
 if [ $# -eq 0 ]; then # download latest vdi
-  dl="https:$(wget -q -O- $vdi | grep -Po '(?<=a href=")[^"]*/routeros/[^"]*\.vdi[^"]*' | head -n1)"
+  dl="$(wget -q -O- $vdi | grep -Po '(?<=a href=")[^"]*/routeros/[^"]*\.vdi[^"]*' | head -n1)"
   wget -nv -cN $dl
   chrhd="$(pwd)/$(basename $dl)"
 else # local vdi filename for offline use (./create-vms.sh <vdi_file>)
