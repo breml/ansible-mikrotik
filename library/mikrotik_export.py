@@ -360,6 +360,8 @@ def main():
     response = sshcmd(module, device, cmd_timeout, "system identity print")
     identity = str(response.split(": ")[1])
     identity = identity.strip()
+    system_id = sshcmd(module, device, cmd_timeout,
+                         ":put [ /system license get system-id ]")
     software_id = sshcmd(module, device, cmd_timeout,
                          ":put [ /system license get software-id ]")
     if not software_id or software_id == "input does not match any value of value-name":
@@ -385,10 +387,11 @@ def main():
             with open(exportfull, 'w') as exp:
                 exp.write("# " + rosdev['username'] + "@" + identity +
                           ", RouterOS " + version +": " + exportcmd + "\n")
+                exp.write("# system id: " + system_id + "\n")
                 if timestamp:
                     exp.write(response)
                 else:
-                    no_ts = response.splitlines(1)[1:]
+                    no_ts = response.replace("\r", "").splitlines(1)[1:]
                     exp.writelines(no_ts)
                 exp.close()
         except Exception as export_error:
