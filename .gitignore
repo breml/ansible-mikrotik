@@ -91,6 +91,7 @@ ENV/
 .vscode/
 test/
 test-*
+/exports
 exports/*
 scripts/*
 templates/*

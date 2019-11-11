@@ -28,7 +28,6 @@ SHELLDEFS = {
     'port': 22,
     'test_change': True,
     'command': None,
-    'execute_file': None,
     'upload_script': None,
     'upload_file': None
 }
@@ -56,15 +55,9 @@ options:
             - IP Address or hostname of the MikroTik device
         required: true
         default: null
-    execute_file:
-        description:
-            - Execute multiple commands from the specified file
-        required: no
-        choices: true, false
-        default: false
     upload_script:
         description:
-            - Upload commands from file specified in command and save as a script
+            - Upload commands from specified file, save as a script and execute the script
         required: no
         default: false
     test_change:
@@ -117,9 +110,8 @@ stdout_lines:
     type: list
 """
 SHELL_USAGE = """
-mikrotik_command.py --hostname=<hostname> --command=<command>
-        [--run_block] [--upload_script] [--upload_file=<file>]
-        [--port=<port>] [--username=<username>] [--password=<password>]
+mikrotik_command.py --hostname=<hostname> (--command=<command> | --upload_script=<file>)
+    [--upload_file=<file>] [--port=<port>] [--username=<username>] [--password=<password>] [--test_change]
 """
 
 def safe_fail(module, device=None, **kwargs):
@@ -202,7 +194,7 @@ def sshcmd(module, device, timeout, command):
     if SHELLMODE:
         print "Command: " + str(command)
         sys.exit("Error: " + str(response))
-    safe_fail(module, device, msg=str(ssh_error),
+    safe_fail(module, device, msg='bad command name or syntax error',
               description='bad command name or syntax error')
 
 def main():
@@ -214,7 +206,6 @@ def main():
         module = AnsibleModule(
             argument_spec=dict(
                 command=dict(default=None, type='str'),
-                execute_file=dict(default=None, type='path'),
                 upload_script=dict(default=None, type='path'),
                 test_change=dict(default=True, type='bool'),
                 upload_file=dict(default=None, type='path'),
@@ -229,8 +220,10 @@ def main():
         if not HAS_SSHCLIENT:
             safe_fail(module, msg='There was a problem loading module: ',
                       error=str(import_error))
+        if not module.params['command'] and not module.params['upload_script']:
+            safe_fail(module, msg='command required',
+                  description='command or upload_script is required')
         command = module.params['command']
-        execute_file = module.params['run_block']
         upload_script = module.params['upload_script']
         test_change = module.params['test_change']
         upload_file = module.params['upload_file']
@@ -244,9 +237,9 @@ def main():
     else:
         if not HAS_SSHCLIENT:
             sys.exit("SSH client error: " + str(import_error))
-        if not SHELLOPTS['command']:
+        if not SHELLOPTS['command'] and not SHELLOPTS['upload_script']:
             print SHELL_USAGE
-            sys.exit("command required, specify with --command=<cmd>")
+            sys.exit("command required, specify with --command=<cmd> or --upload_script=<file>")
         rosdev['hostname'] = SHELLOPTS['hostname']
         rosdev['username'] = SHELLOPTS['username']
         rosdev['password'] = SHELLOPTS['password']
@@ -254,7 +247,6 @@ def main():
         rosdev['timeout'] = SHELLOPTS['timeout']
         rosdev['key_filename'] = SHELLOPTS['key_filename']
         command = SHELLOPTS['command']
-        execute_file = SHELLOPTS['execute_file']
         upload_script = SHELLOPTS['upload_script']
         test_change = SHELLOPTS['test_change']
         upload_file = SHELLOPTS['upload_file']
@@ -314,12 +306,9 @@ def main():
             line = line.replace("$", "\\$")
             cmd += line + "\\r\\n"
         response += sshcmd(module, device, cmd_timeout, cmd + '"')
-        elif run_block:
-            for cmd in script:
-                if cmd[0] != "#":
-                    rsp = sshcmd(module, device, cmd_timeout, cmd)
-                    if rsp:
-                        response += rsp + '\r\n'
+        response += sshcmd(module, device, cmd_timeout,
+                           '/system script run [ find name="'
+                           + scriptname + '" ]')
     else:
         if upload_file and command == 'user ssh-keys import':
             response = sshcmd(module, device, cmd_timeout,
@@ -327,8 +316,8 @@ def main():
                               uploaded + '" user=' + rosdev['username'])
         else:
             response = sshcmd(module, device, cmd_timeout, command)
-        if response:
-            response += '\r\n'
+    if response:
+        response += '\r\n'
 
     if test_change:
         after = sshcmd(module, device, cmd_timeout, "/export")

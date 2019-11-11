@@ -29,7 +29,7 @@
 
   - name: Prepare default setup from template
     template:
-      src: defaults.rsc.j2
+      src: "templates/defaults.rsc.j2"
       dest: "scripts/{{ inventory_hostname }}-defaults.rsc"
     register: defaults
   
@@ -37,8 +37,7 @@
 
   - name: Apply default setup on device(s)
     mikrotik_command:
-      command: "scripts/{{ inventory_hostname }}-defaults.rsc"
-      run_block: true
+      upload_script: "scripts/{{ inventory_hostname }}-defaults.rsc"
       hostname: "{{ inventory_hostname }}"
       username: "{{ username }}"
       password: "{{ password }}"
