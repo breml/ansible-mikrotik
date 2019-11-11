@@ -362,7 +362,7 @@ def main():
     identity = identity.strip()
     software_id = sshcmd(module, device, cmd_timeout,
                          ":put [ /system license get software-id ]")
-    if not software_id:
+    if not software_id or software_id == "input does not match any value of value-name":
         software_id = rosdev['hostname']
     if not export_file:
         export_file = identity + "_" + software_id + ".rsc"
