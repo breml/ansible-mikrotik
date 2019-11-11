@@ -10,6 +10,12 @@
 
   tasks:
 
+  - name: "Ensure {{ export_dir }} is present"
+    file:
+      path: "{{ export_dir }}"
+      state: directory
+      mode: '0755'
+
   - name: Check git repository
     command: git init
     args:
